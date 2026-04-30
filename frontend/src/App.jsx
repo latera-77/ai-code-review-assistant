@@ -1,12 +1,46 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Editor from "@monaco-editor/react";
 import { motion, AnimatePresence } from "framer-motion";
+import { detectLanguage } from "./utils/detectLanguage";
 
 export default function App() {
   const [code, setCode] = useState("// write your code here");
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [language, setLanguage] = useState("javascript");
 
+  // ✅ Detect language automatically
+  useEffect(() => {
+    const detected = detectLanguage(code);
+    setLanguage(detected);
+  }, [code]);
+
+  // ✅ Monaco error markers
+  useEffect(() => {
+    if (!result?.bugs || !window.editor || !window.monaco) return;
+
+    const markers = (result.bugs || []).map((bug) => ({
+      startLineNumber: bug.line || 1,
+      endLineNumber: bug.line || 1,
+      startColumn: 1,
+      endColumn: 100,
+      message: bug.message || "Issue detected",
+      severity:
+        bug.severity === "high"
+          ? window.monaco.MarkerSeverity.Error
+          : bug.severity === "medium"
+          ? window.monaco.MarkerSeverity.Warning
+          : window.monaco.MarkerSeverity.Info,
+    }));
+
+    window.monaco.editor.setModelMarkers(
+      window.editor.getModel(),
+      "ai-review",
+      markers
+    );
+  }, [result]);
+
+  // ✅ API call
   const reviewCode = async () => {
     if (!code.trim()) return;
 
@@ -19,7 +53,7 @@ export default function App() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ code }),
+        body: JSON.stringify({ code, language }),
       });
 
       const data = await res.json();
@@ -31,6 +65,13 @@ export default function App() {
     setLoading(false);
   };
 
+  // ✅ Safe Tailwind colors
+  const colors = {
+    red: "text-red-400",
+    yellow: "text-yellow-400",
+    green: "text-green-400",
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -38,12 +79,14 @@ export default function App() {
       className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-black text-white p-6 flex flex-col items-center"
     >
       {/* Header */}
-      <div className="text-center mb-8">
-        <h1 className="text-4xl font-bold tracking-tight">
-          AI Code Reviewer
-        </h1>
+      <div className="text-center mb-6">
+        <h1 className="text-4xl font-bold">AI Code Reviewer</h1>
         <p className="text-gray-400 mt-2">
           Paste code → Get instant AI feedback
+        </p>
+
+        <p className="text-sm text-gray-500 mt-2">
+          Detected language: <span className="text-white">{language}</span>
         </p>
       </div>
 
@@ -51,10 +94,14 @@ export default function App() {
       <div className="w-full max-w-6xl bg-gray-900/60 backdrop-blur border border-gray-800 rounded-2xl p-4 shadow-xl">
         <Editor
           height="420px"
-          defaultLanguage="javascript"
+          language={language}
           theme="vs-dark"
           value={code}
           onChange={(value) => setCode(value || "")}
+          onMount={(editor, monaco) => {
+            window.editor = editor;
+            window.monaco = monaco;
+          }}
         />
 
         <motion.button
@@ -76,7 +123,6 @@ export default function App() {
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 40 }}
-            transition={{ duration: 0.4 }}
             className="w-full max-w-6xl mt-8 grid grid-cols-1 md:grid-cols-3 gap-4"
           >
             {result.error ? (
@@ -86,37 +132,32 @@ export default function App() {
             ) : (
               <>
                 {/* Score */}
-                <motion.div
-                  initial={{ scale: 0.9 }}
-                  animate={{ scale: 1 }}
-                  transition={{ delay: 0.1 }}
-                  className="bg-gray-900 border border-gray-800 rounded-xl p-4"
-                >
+                <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
                   <h2 className="text-green-400 font-semibold">Score</h2>
                   <p className="text-4xl font-bold mt-2">
                     {result.score}
                   </p>
-                </motion.div>
+                </div>
 
                 <AnimatedCard
                   title="Bugs"
                   color="red"
                   items={result.bugs}
-                  delay={0.2}
+                  colors={colors}
                 />
 
                 <AnimatedCard
                   title="Improvements"
                   color="yellow"
                   items={result.improvements}
-                  delay={0.3}
+                  colors={colors}
                 />
 
                 <AnimatedCard
                   title="Best Practices"
                   color="green"
                   items={result.bestPractices}
-                  delay={0.4}
+                  colors={colors}
                 />
               </>
             )}
@@ -127,31 +168,26 @@ export default function App() {
   );
 }
 
-/* ---------- Reusable Animated Card ---------- */
+/* ---------- Card ---------- */
 
-function AnimatedCard({ title, items, color, delay }) {
+function AnimatedCard({ title, items, color, colors }) {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay }}
-      className="bg-gray-900 border border-gray-800 rounded-xl p-4"
-    >
-      <h3 className={`text-${color}-400 font-semibold mb-3`}>
+    <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
+      <h3 className={`${colors[color]} font-semibold mb-3`}>
         {title}
       </h3>
 
-      {items && items.length > 0 ? (
+      {Array.isArray(items) && items.length > 0 ? (
         <ul className="space-y-2 text-sm text-gray-300">
           {items.map((item, i) => (
             <li key={i} className="bg-gray-800 p-2 rounded-lg">
-              {item}
+              {item.message || item}
             </li>
           ))}
         </ul>
       ) : (
         <p className="text-gray-500 text-sm">No data</p>
       )}
-    </motion.div>
+    </div>
   );
 }
