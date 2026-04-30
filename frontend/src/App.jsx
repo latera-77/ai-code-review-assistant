@@ -1,5 +1,6 @@
 import { useState } from "react";
 import Editor from "@monaco-editor/react";
+import { motion, AnimatePresence } from "framer-motion";
 
 export default function App() {
   const [code, setCode] = useState("// write your code here");
@@ -15,12 +16,14 @@ export default function App() {
     try {
       const res = await fetch("http://localhost:5000/api/review", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({ code }),
       });
 
       const data = await res.json();
-      setResult(data.data);
+      setResult(data?.data || { error: "Invalid response" });
     } catch (err) {
       setResult({ error: "Backend not reachable" });
     }
@@ -29,78 +32,116 @@ export default function App() {
   };
 
   return (
-  <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-black text-white p-6 flex flex-col items-center">
-
-    {/* Header */}
-    <div className="text-center mb-8">
-      <h1 className="text-4xl font-bold tracking-tight">
-        AI Code Reviewer
-      </h1>
-      <p className="text-gray-400 mt-2">
-        Paste code → Get instant AI feedback
-      </p>
-    </div>
-
-    {/* Editor Card */}
-    <div className="w-full max-w-6xl bg-gray-900/60 backdrop-blur border border-gray-800 rounded-2xl p-4 shadow-xl">
-
-      <Editor
-        height="420px"
-        defaultLanguage="javascript"
-        theme="vs-dark"
-        value={code}
-        onChange={(value) => setCode(value || "")}
-      />
-
-      <button
-        onClick={reviewCode}
-        disabled={loading}
-        className="mt-4 w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 transition py-3 rounded-xl font-semibold"
-      >
-        {loading ? "Analyzing code..." : "Review Code"}
-      </button>
-    </div>
-
-    {/* Result Section */}
-    {result && (
-      <div className="w-full max-w-6xl mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
-
-        {/* Score Card */}
-        {!result.error && (
-          <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
-            <h2 className="text-lg font-semibold text-green-400">
-              Score
-            </h2>
-            <p className="text-4xl font-bold mt-2">
-              {result.score}
-            </p>
-          </div>
-        )}
-
-        {/* Bugs */}
-        <Card title="Bugs" color="red" items={result.bugs} />
-
-        {/* Improvements */}
-        <Card title="Improvements" color="yellow" items={result.improvements} />
-
-        {/* Best Practices */}
-        <Card title="Best Practices" color="green" items={result.bestPractices} />
-
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-black text-white p-6 flex flex-col items-center"
+    >
+      {/* Header */}
+      <div className="text-center mb-8">
+        <h1 className="text-4xl font-bold tracking-tight">
+          AI Code Reviewer
+        </h1>
+        <p className="text-gray-400 mt-2">
+          Paste code → Get instant AI feedback
+        </p>
       </div>
-    )}
 
-  </div>
-);
+      {/* Editor */}
+      <div className="w-full max-w-6xl bg-gray-900/60 backdrop-blur border border-gray-800 rounded-2xl p-4 shadow-xl">
+        <Editor
+          height="420px"
+          defaultLanguage="javascript"
+          theme="vs-dark"
+          value={code}
+          onChange={(value) => setCode(value || "")}
+        />
+
+        <motion.button
+          whileHover={{ scale: 1.03 }}
+          whileTap={{ scale: 0.97 }}
+          onClick={reviewCode}
+          disabled={loading}
+          className="mt-4 w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 py-3 rounded-xl font-semibold transition"
+        >
+          {loading ? "Analyzing code..." : "Review Code"}
+        </motion.button>
+      </div>
+
+      {/* Results */}
+      <AnimatePresence>
+        {result && (
+          <motion.div
+            key="result"
+            initial={{ opacity: 0, y: 40 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 40 }}
+            transition={{ duration: 0.4 }}
+            className="w-full max-w-6xl mt-8 grid grid-cols-1 md:grid-cols-3 gap-4"
+          >
+            {result.error ? (
+              <div className="col-span-3 bg-red-900/30 border border-red-700 p-4 rounded-xl">
+                <p className="text-red-400">{result.error}</p>
+              </div>
+            ) : (
+              <>
+                {/* Score */}
+                <motion.div
+                  initial={{ scale: 0.9 }}
+                  animate={{ scale: 1 }}
+                  transition={{ delay: 0.1 }}
+                  className="bg-gray-900 border border-gray-800 rounded-xl p-4"
+                >
+                  <h2 className="text-green-400 font-semibold">Score</h2>
+                  <p className="text-4xl font-bold mt-2">
+                    {result.score}
+                  </p>
+                </motion.div>
+
+                <AnimatedCard
+                  title="Bugs"
+                  color="red"
+                  items={result.bugs}
+                  delay={0.2}
+                />
+
+                <AnimatedCard
+                  title="Improvements"
+                  color="yellow"
+                  items={result.improvements}
+                  delay={0.3}
+                />
+
+                <AnimatedCard
+                  title="Best Practices"
+                  color="green"
+                  items={result.bestPractices}
+                  delay={0.4}
+                />
+              </>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
 }
 
-function Card({ title, items, color }) {
+/* ---------- Reusable Animated Card ---------- */
+
+function AnimatedCard({ title, items, color, delay }) {
   return (
-    <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay }}
+      className="bg-gray-900 border border-gray-800 rounded-xl p-4"
+    >
       <h3 className={`text-${color}-400 font-semibold mb-3`}>
         {title}
       </h3>
 
-      {items?.length ? (
+      {items && items.length > 0 ? (
         <ul className="space-y-2 text-sm text-gray-300">
           {items.map((item, i) => (
             <li key={i} className="bg-gray-800 p-2 rounded-lg">
@@ -111,6 +152,6 @@ function Card({ title, items, color }) {
       ) : (
         <p className="text-gray-500 text-sm">No data</p>
       )}
-    </div>
+    </motion.div>
   );
 }
