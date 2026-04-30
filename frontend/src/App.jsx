@@ -8,13 +8,13 @@ export default function App() {
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [language, setLanguage] = useState("javascript");
-
+  const [detectedLanguage, setDetectedLanguage] = useState("javascript");
+  
   // ✅ Detect language automatically
-  useEffect(() => {
-    const detected = detectLanguage(code);
-    setLanguage(detected);
-  }, [code]);
-
+ useEffect(() => {
+  const detected = detectLanguage(code);
+  setDetectedLanguage(detected);
+}, [code]);
   // ✅ Monaco error markers
   useEffect(() => {
     if (!result?.bugs || !window.editor || !window.monaco) return;
@@ -76,7 +76,7 @@ export default function App() {
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-black text-white p-6 flex flex-col items-center"
+      className="min-h-screen w-full bg-gradient-to-br from-gray-100 via-gray-200 to-gray-300 text-gray-900 flex flex-col items-center px-6 py-8"
     >
       {/* Header */}
       <div className="text-center mb-6">
@@ -85,17 +85,33 @@ export default function App() {
           Paste code → Get instant AI feedback
         </p>
 
-        <p className="text-sm text-gray-500 mt-2">
-          Detected language: <span className="text-white">{language}</span>
-        </p>
-      </div>
+  {/* ✅ Language selector */}
+  <select
+    value={language}
+    onChange={(e) => setLanguage(e.target.value)}
+    className="mt-3 bg-gray-800 border border-gray-700 px-3 py-2 rounded-lg"
+  >
+    <option value="javascript">JavaScript</option>
+    <option value="python">Python</option>
+    <option value="java">Java</option>
+    <option value="cpp">C++</option>
+    <option value="c">C</option>
+  </select>
+  <p className="text-sm text-gray-400 mt-2">
+  Detected:{" "}
+  <span className="text-green-400 font-semibold">
+    {detectedLanguage}
+  </span>
+  {" "}✓
+</p>
+</div>
 
       {/* Editor */}
-      <div className="w-full max-w-6xl bg-gray-900/60 backdrop-blur border border-gray-800 rounded-2xl p-4 shadow-xl">
+      <div className="w-full max-w-6xl bg-white border border-gray-300 rounded-2xl p-4 shadow-lg">
         <Editor
           height="420px"
           language={language}
-          theme="vs-dark"
+          theme="vs-light"
           value={code}
           onChange={(value) => setCode(value || "")}
           onMount={(editor, monaco) => {
